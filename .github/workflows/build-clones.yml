@@ -42,7 +42,9 @@ jobs:
           gh release download apk-source-v2.742 --repo "$GITHUB_REPOSITORY" --pattern source.apk --dir work
           echo '3a50f089d842457eca29f3531aba68b97b3028de521971c5c9d7ac62331d6814  work/source.apk' | sha256sum --check
           curl --fail --location --retry 3 https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar -o work/apktool.jar
-          sdkmanager 'build-tools;36.0.0'
+          if [ ! -x "$ANDROID_HOME/build-tools/36.0.0/apksigner" ]; then
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;36.0.0'
+          fi
           sudo apt-get update -qq
           sudo apt-get install -y rar
       - name: Build, sign and verify all packages
