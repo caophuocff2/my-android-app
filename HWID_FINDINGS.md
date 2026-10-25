@@ -31,6 +31,19 @@ names do not establish the complete path from `generate` to the executor's
 final HWID. **Equality of the final native/Luau HWID remains unverified.** No
 hardware identifier or licensing routine has been patched.
 
+### Follow-up: actual executor HWID comparison (2026-10-25)
+
+The later runtime test obtained successful `gethwid()` results from Clone 01
+and Clone 02 in two separate Roblox game sessions, using Arceus X 2.3.7.
+Both returned the same nonempty value. The full samples and comparison are
+stored locally under `output/clone-runtime/hwid-clone01.json`,
+`hwid-clone02.json`, and `hwid-comparison.json`.
+
+This establishes equal executor HWID for these two packages on this LDPlayer.
+The earlier static-analysis limitation above is superseded for that tested
+pair. Clone 03–11 and UGPhone/cloud-device behavior remain untested. Hardware
+identifier generation was not modified.
+
 ## Device validation
 
 GitHub Actions run: https://github.com/caophuocff2/my-android-app/actions/runs/40182907937

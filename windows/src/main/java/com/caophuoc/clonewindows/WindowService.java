@@ -21,6 +21,10 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,6 +44,7 @@ import java.util.regex.Pattern;
 public class WindowService extends Service {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService deadlines = Executors.newSingleThreadScheduledExecutor();
     private final AtomicReference<Resize> pending = new AtomicReference<>();
     private final Map<String, Integer> known = new HashMap<>();
     private final ArrayList<View> edges = new ArrayList<>();
@@ -50,6 +56,10 @@ public class WindowService extends Service {
     private int shownTask = -1;
     private Rect shownBounds;
     private long nextPoll;
+    private Process root;
+    private BufferedReader rootOutput;
+    private BufferedWriter rootInput;
+    private int commandId;
 
     private static class Resize {
         final int task;
@@ -104,20 +114,32 @@ public class WindowService extends Service {
     }
 
     private String shell(String command) throws Exception {
-        Process process = new ProcessBuilder("su", "-c", command).redirectErrorStream(true).start();
-        if (!process.waitFor(5, TimeUnit.SECONDS)) {
-            process.destroyForcibly();
-            throw new Exception("Lệnh quản lý cửa sổ quá thời gian.");
+        boolean first = root == null;
+        if (first) {
+            root = new ProcessBuilder("su").redirectErrorStream(true).start();
+            rootOutput = new BufferedReader(new InputStreamReader(root.getInputStream(), StandardCharsets.UTF_8));
+            rootInput = new BufferedWriter(new OutputStreamWriter(root.getOutputStream(), StandardCharsets.UTF_8));
         }
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        byte[] buffer = new byte[4096];
-        int count;
-        while ((count = process.getInputStream().read(buffer)) != -1) bytes.write(buffer, 0, count);
-        String output = new String(bytes.toByteArray(), StandardCharsets.UTF_8);
-        if (process.exitValue() != 0 || output.contains("Exception") || output.startsWith("Error:")) {
-            throw new Exception("Lỗi cửa sổ: " + output.substring(0, Math.min(240, output.length())));
+        Process active = root;
+        ScheduledFuture<?> timeout = deadlines.schedule(active::destroyForcibly, first ? 60 : 8, TimeUnit.SECONDS);
+        String marker = "__CLONE_WINDOWS_" + (++commandId) + "_";
+        StringBuilder output = new StringBuilder();
+        try {
+            rootInput.write(command + "\nprintf '\\n" + marker + "%s__\\n' \"$?\"\n");
+            rootInput.flush();
+            String line;
+            while ((line = rootOutput.readLine()) != null) {
+                if (line.startsWith(marker)) {
+                    if (!line.equals(marker + "0__") || output.indexOf("Exception") >= 0 || output.indexOf("Error:") >= 0)
+                        throw new Exception("Lỗi cửa sổ: " + output.substring(0, Math.min(240, output.length())));
+                    return output.toString();
+                }
+                output.append(line).append('\n');
+            }
+            throw new Exception("Phiên root đã đóng hoặc hết thời gian. Hãy cấp root rồi bật lại.");
+        } finally {
+            timeout.cancel(false);
         }
-        return output;
     }
 
     private void tick() {
@@ -250,6 +272,8 @@ public class WindowService extends Service {
     @Override public void onDestroy() {
         alive = false;
         worker.shutdownNow();
+        if (root != null) root.destroyForcibly();
+        deadlines.shutdownNow();
         ui.removeCallbacksAndMessages(null);
         clearEdges();
         super.onDestroy();
