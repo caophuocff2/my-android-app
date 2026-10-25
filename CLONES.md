@@ -11,6 +11,8 @@ Keep the original local key for future updates.
 
 Executable DEX and native libraries are verified unchanged. Package names,
 provider authorities, app permission namespaces and launcher labels change.
+Activities opt into resizing so an Android system with freeform window support
+can open the clones in separate windows.
 
 Android 8+ scopes Android ID to the signing key, Android user and device:
 https://developer.android.com/reference/android/provider/Settings.Secure#ANDROID_ID

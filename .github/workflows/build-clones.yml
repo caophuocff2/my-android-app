@@ -55,7 +55,7 @@ jobs:
       - name: Archive and publish
         run: |
           set -euo pipefail
-          (cd dist && rar a -m3 -s ../ArceusQT-Clones.rar ./*)
+          (cd dist && rar a -m3 -md256m -s ../ArceusQT-Clones.rar ./*)
           rar t ArceusQT-Clones.rar
           sha256sum ArceusQT-Clones.rar > ArceusQT-Clones.rar.sha256
           tag="clones-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"

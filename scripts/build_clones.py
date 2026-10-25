@@ -38,6 +38,8 @@ def patch_manifest(original, package, label):
                 element.set(key, value.replace(old, package))
         if element.tag in {"application", "activity-alias"}:
             element.set(ANDROID + "label", label)
+        if element.tag in {"application", "activity"}:
+            element.set(ANDROID + "resizeableActivity", "true")
     authorities = [e.get(ANDROID + "authorities", "") for e in root.iter("provider")]
     if any(old in a for a in authorities):
         raise RuntimeError("Provider authority still uses the source package")
