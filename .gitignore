@@ -8,3 +8,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+/output/
+/work/
+/dist/
+*.p12
+*.jks
