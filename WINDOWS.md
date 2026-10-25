@@ -19,3 +19,31 @@ already be available; the app does not root a device.
 Build with `./gradlew :windows:assembleDebug`, or use the **Build Clone Windows**
 GitHub Actions workflow. Android versions with a different activity-manager
 command format require separate validation. UGPhone has not been tested.
+
+The APK supplied by the workflow is signed with the same persistent certificate
+as the clone family, so later companion updates retain stored window sizes.
+`scripts/test_windows.py` performs real ADB drags on each edge and then stops
+and reopens a clone through its normal launcher to check rectangle restoration.
+
+## Play Store test
+
+At the user's request, the local test device's Play Store was disabled using
+`pm disable-user --user 0 com.android.vending`. Google Play Services were not
+disabled. Undo with `pm enable com.android.vending`.
+
+This is a local configuration test. No UGPhone reset cause or detection bypass
+has been established. An APK cannot establish how a cloud provider reacts to
+installed applications without testing on that provider's device.
+
+## Runtime validation, 2026-10-25
+
+Workflow run `40190070483` compiled and signed the installed APK successfully.
+On the existing LDPlayer Android 9 instance, `test_windows.py` passed independent
+left, right, top and bottom edge drags. Each test moved only the selected edge
+by 24 pixels. The final rectangle was `[216,111][744,429]`.
+
+Force-stopping Clone 02 and opening its normal launcher icon initially created
+a fullscreen task. The controller moved that task to freeform and restored
+the saved rectangle. The device crash log contained no entries at the end of
+the test. Per-device reboot startup and UGPhone compatibility were not tested.
+Results: release asset `window-runtime-tests.json`.
