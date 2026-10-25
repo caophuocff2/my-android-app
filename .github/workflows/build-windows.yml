@@ -18,7 +18,18 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v3
       - run: chmod +x gradlew && ./gradlew :windows:assembleDebug --stacktrace
+      - name: Sign with persistent clone certificate
+        env:
+          CLONE_KEYSTORE_BASE64: ${{ secrets.CLONE_KEYSTORE_BASE64 }}
+          CLONE_KEYSTORE_PASSWORD: ${{ secrets.CLONE_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$CLONE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/windows.p12"
+          TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          mkdir -p dist
+          "$TOOLS/apksigner" sign --ks "$RUNNER_TEMP/windows.p12" --ks-type PKCS12 --ks-key-alias clone --ks-pass env:CLONE_KEYSTORE_PASSWORD --key-pass env:CLONE_KEYSTORE_PASSWORD --out dist/Clone-Windows.apk windows/build/outputs/apk/debug/windows-debug.apk
+          "$TOOLS/apksigner" verify --verbose --print-certs dist/Clone-Windows.apk
       - uses: actions/upload-artifact@v4
         with:
           name: clone-windows-apk
-          path: windows/build/outputs/apk/debug/*.apk
+          path: dist/Clone-Windows.apk
