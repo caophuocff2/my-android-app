@@ -169,6 +169,7 @@ public class WindowService extends Service {
                 boolean fresh = !Integer.valueOf(task).equals(known.get(pkg));
                 if (visible && (fresh || !freeform || current.width() >= screenW || current.height() >= screenH)) {
                     current = saved(pkg);
+                    if (!freeform) moveToFreeform(task);
                     resize(task, current);
                     known.put(pkg, task);
                 } else if (visible && freeform) {
@@ -187,6 +188,24 @@ public class WindowService extends Service {
 
     private void resize(int task, Rect r) throws Exception {
         shell(String.format(Locale.US, "am task resize %d %d %d %d %d", task, r.left, r.top, r.right, r.bottom));
+    }
+    private void moveToFreeform(int task) throws Exception {
+        shell("am start --windowingMode 5 -f 0x18000000 -n " + getPackageName() + "/.CarrierActivity");
+        String dump = shell("am stack list");
+        int stack = -1, carrierStack = -1;
+        for (String line : dump.split("\n")) {
+            if (line.startsWith("Stack id=")) {
+                int end = line.indexOf(' ', 9);
+                stack = Integer.parseInt(line.substring(9, end));
+            }
+            if (line.contains(getPackageName() + "/") && line.contains("CarrierActivity")) carrierStack = stack;
+        }
+        if (carrierStack < 0) throw new Exception("Không tạo được cửa sổ nổi trên thiết bị này.");
+        try {
+            shell("am stack move-task " + task + " " + carrierStack + " true");
+        } finally {
+            ui.post(() -> { if (CarrierActivity.active != null) CarrierActivity.active.finishAndRemoveTask(); });
+        }
     }
     private Rect saved(String pkg) {
         String value = prefs.getString(pkg, "");
